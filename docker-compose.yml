@@ -1,40 +1,52 @@
+version: "3.9"
+
 services:
   app:
     build:
       context: ./app
     env_file:
-      - ./app/.env
+      - .env
     volumes:
       - ./app:/app
     depends_on:
-      - rabbitmq
       - database
+      - rabbitmq
+    expose:
+      - "${APP_PORT:-8000}"
 
   web-proxy:
-    build:
-      context: ./web-proxy
+    image: nginx:1.25-alpine
     depends_on:
       - app
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
   rabbitmq:
     image: rabbitmq:3-management
+    restart: always
     ports:
-      - "15672:15672"
       - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
-      - ./rabbitmq-data:/var/lib/rabbitmq
-    restart: on-failure
+      - rabbitmq_volume:/var/lib/rabbitmq
 
   database:
-    image: postgres
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
     environment:
-      POSTGRES_DB: app_db
-      POSTGRES_USER: app_user
-      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - postgres_volume:/var/lib/postgresql/data
 
-
+volumes:
+  postgres_volume:
+  rabbitmq_volume:

@@ -303,14 +303,26 @@ docker compose up
 - Использование volumes и env_file;
 - Возможность воспроизводимого запуска проекта.
 
-#### Запуск
+
+## Быстрый старт
+
+1) Создайте локальный `.env` на основе шаблона:
+
+```bash
+cp .env.example .env
+```
+
+2) Запустите сервисы:
+
+```bash
 docker compose up --build
+```
 
-#### Проверка
-- Nginx доступен: http://localhost
-- Nginx порт 443 доступен: http://localhost:443
-- RabbitMQ UI: http://localhost:15672
+- Nginx: http://localhost (порт 80)
+- RabbitMQ UI: http://localhost:15672 (логин/пароль из .env)
+- Postgres: localhost:5432
 
+> В репозиторий коммитим только `.env.example`, файл `.env` должен оставаться локальным и находится в `.gitignore`.
 
 ![](img/ex-2-1.png)
 ![](img/ex-2-2.png)
