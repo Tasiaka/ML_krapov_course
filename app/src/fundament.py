@@ -68,7 +68,6 @@ class RowError:
     message: str
 
 
-
 # -----------------------
 # основной каркас
 # -----------------------
@@ -81,11 +80,6 @@ class Credits:
     def __post_init__(self) -> None:
         if self.amount < 0:
             raise ValueError("credits must be >= 0")
-
-
-@dataclass(frozen=True)
-class Email:
-    value: str
 
 
 @dataclass
@@ -112,7 +106,7 @@ class Wallet:
 @dataclass
 class User:
     id: UUID
-    email: Email
+    email: str
     role: Role = Role.USER
     wallet: Wallet = field(default_factory=Wallet)
     created_at: datetime = field(default_factory=utc_now)
@@ -142,8 +136,8 @@ class MLModel:
 @dataclass
 class Transaction:
     """
-    Базовая транзакция.
-    У наследников должен быть свой apply().
+    Транзакция пополнения или списания.
+    Применяется billing-сервисом (не самим объектом).
     """
     id: UUID
     user_id: UUID
@@ -152,26 +146,11 @@ class Transaction:
     status: TxStatus = TxStatus.PENDING
     created_at: datetime = field(default_factory=utc_now)
 
-    def apply(self, user: User) -> None:
-        raise NotImplementedError("apply must be implemented in child classes")
-
-
-@dataclass
-class TopUpTx(Transaction):
-    tx_type: TxType = TxType.TOP_UP
-
-    def apply(self, user: User) -> None:
-        user.wallet.top_up(self.amount)
+    def mark_applied(self) -> None:
         self.status = TxStatus.APPLIED
 
-
-@dataclass
-class ChargeTx(Transaction):
-    tx_type: TxType = TxType.CHARGE
-
-    def apply(self, user: User) -> None:
-        user.wallet.charge(self.amount)
-        self.status = TxStatus.APPLIED
+    def mark_rejected(self) -> None:
+        self.status = TxStatus.REJECTED
 
 
 # ---------------------
@@ -246,25 +225,46 @@ class ValidationReport:
 
 class BillingService:
     """
-    Пополнение и списание через транзакции
+    Пополнение и списание:
+    - создаём Transaction
+    - применяем к кошельку
+    - выставляем статус
     """
 
-    def create_top_up_request(self, user: User, amount: Credits) -> TopUpTx:
-        return TopUpTx(id=uuid4(), user_id=user.id, amount=amount, status=TxStatus.PENDING)
+    def create_top_up_request(self, user: User, amount: Credits) -> Transaction:
+        return Transaction(
+            id=uuid4(),
+            user_id=user.id,
+            amount=amount,
+            tx_type=TxType.TOP_UP,
+            status=TxStatus.PENDING,
+        )
 
-    def approve_top_up(self, admin: User, tx: TopUpTx, user: User) -> None:
+    def approve_top_up(self, admin: User, tx: Transaction, user: User) -> None:
         if not admin.is_admin():
             raise Forbidden("admin only")
 
-        if tx.status == TxStatus.REJECTED:
+        # идемпотентность
+        if tx.status != TxStatus.PENDING:
             return
 
+        if tx.tx_type != TxType.TOP_UP:
+            raise DomainError("wrong tx type for approve_top_up")
 
-        tx.apply(user)
+        user.wallet.top_up(tx.amount)
+        tx.mark_applied()
 
-    def charge_user(self, user: User, amount: Credits) -> ChargeTx:
-        tx = ChargeTx(id=uuid4(), user_id=user.id, amount=amount)
-        tx.apply(user)
+    def charge_user(self, user: User, amount: Credits) -> Transaction:
+        tx = Transaction(
+            id=uuid4(),
+            user_id=user.id,
+            amount=amount,
+            tx_type=TxType.CHARGE,
+            status=TxStatus.PENDING,
+        )
+
+        user.wallet.charge(amount)  # может бросить NotEnoughCredits
+        tx.mark_applied()
         return tx
 
 
@@ -285,10 +285,9 @@ class MLFlowService:
         if not model.is_active:
             raise DomainError("model disabled")
 
-
         estimated = model.calc_cost(len(rows))
-        if user.wallet.balance.amount <= 0 or user.wallet.balance.amount < estimated.amount:
-            raise NotEnoughCredits("need positive balance")
+        if user.wallet.balance.amount < estimated.amount:
+            raise NotEnoughCredits("need enough balance for estimated cost")
 
         job = MLJob(
             id=uuid4(),
@@ -318,24 +317,21 @@ class MLFlowService:
         predictions: list[dict[str, Any]],
         billing: BillingService,
     ) -> PredictionHistory:
-
-
         history.valid_rows = len(report.valid_rows)
         history.invalid_rows = len(report.errors)
         history.errors = report.errors
         history.predictions = predictions
 
-
         if history.valid_rows > 0:
             history.status = JobStatus.PARTIAL_OK if history.invalid_rows > 0 else JobStatus.OK
             cost = model.calc_cost(history.valid_rows)
-            billing.charge_user(user, cost)
+
+            billing.charge_user(user, cost)  # если не хватит — упадёт исключением
             history.charged = cost
         else:
             history.status = JobStatus.FAILED
             history.charged = Credits(Decimal("0"))
 
         return history
-
 
 
