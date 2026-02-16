@@ -3,6 +3,8 @@ from uuid import uuid4
 
 from src.db.models import MLModelDB, PredictionHistoryDB, UserDB
 from src.repositories.history import PredictionHistoryRepository
+from src.db.enums import PredictionStatus
+
 
 
 def test_prediction_history_list(session):
@@ -16,8 +18,8 @@ def test_prediction_history_list(session):
 
     repo = PredictionHistoryRepository()
 
-    h1 = PredictionHistoryDB(user_id=user.id, model_id=model.id, job_id=uuid4(), status="ok", valid_rows=1, invalid_rows=0, charged=Decimal("1"))
-    h2 = PredictionHistoryDB(user_id=user.id, model_id=model.id, job_id=uuid4(), status="failed", valid_rows=0, invalid_rows=2, charged=Decimal("0"))
+    h1 = PredictionHistoryDB(user_id=user.id, model_id=model.id, job_id=uuid4(), status=PredictionStatus.APPLIED, valid_rows=1, invalid_rows=0, charged=Decimal("1"))
+    h2 = PredictionHistoryDB(user_id=user.id, model_id=model.id, job_id=uuid4(), status=PredictionStatus.FAILED, valid_rows=0, invalid_rows=2, charged=Decimal("0"))
     repo.add(session, h1)
     repo.add(session, h2)
     session.commit()

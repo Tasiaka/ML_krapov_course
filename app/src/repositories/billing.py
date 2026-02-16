@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlmodel import Session, select
 
 from ..db.models import TransactionDB, UserDB
+from ..db.enums import TransactionType, TransactionStatus
 
 
 class BillingRepository:
@@ -23,7 +24,7 @@ class BillingRepository:
 
         user = session.exec(stmt).one()
 
-        tx = TransactionDB(user_id=user_id, amount=amount, tx_type="top_up", status="applied")
+        tx = TransactionDB(user_id=user_id, amount=amount, tx_type=TransactionType.TOP_UP, status=TransactionStatus.APPLIED)
         user.balance = Decimal(user.balance) + amount
 
         session.add(tx)
@@ -43,13 +44,13 @@ class BillingRepository:
         user = session.exec(stmt).one()
 
         if Decimal(user.balance) < amount:
-            tx = TransactionDB(user_id=user_id, amount=amount, tx_type="charge", status="rejected")
+            tx = TransactionDB(user_id=user_id, amount=amount, tx_type=TransactionType.CHARGE, status=TransactionStatus.REJECTED)
             session.add(tx)
             session.flush()
             session.refresh(tx)
             raise RuntimeError("not enough credits")
 
-        tx = TransactionDB(user_id=user_id, amount=amount, tx_type="charge", status="applied")
+        tx = TransactionDB(user_id=user_id, amount=amount, tx_type=TransactionType.CHARGE, status=TransactionStatus.APPLIED)
         user.balance = Decimal(user.balance) - amount
 
         session.add(tx)

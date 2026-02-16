@@ -7,6 +7,8 @@ from sqlmodel import Session
 from .models import MLModelDB, UserDB
 from ..repositories.ml_models import MLModelRepository
 from ..repositories.users import UserRepository
+from .enums import UserRole
+
 
 
 DEMO_ADMIN_EMAIL = "admin@demo.local"
@@ -35,8 +37,8 @@ def init_demo_data(session: Session) -> None:
     user_repo = UserRepository()
     model_repo = MLModelRepository()
 
-    _get_or_create_user(session, user_repo, email=DEMO_ADMIN_EMAIL, role="admin", initial_balance=Decimal("10000"))
-    _get_or_create_user(session, user_repo, email=DEMO_USER_EMAIL, role="user", initial_balance=Decimal("100"))
+    _get_or_create_user(session, user_repo, email=DEMO_ADMIN_EMAIL, role=UserRole.ADMIN, initial_balance=Decimal("10000"))
+    _get_or_create_user(session, user_repo, email=DEMO_USER_EMAIL, role=UserRole.USER, initial_balance=Decimal("100"))
 
     _get_or_create_model(session, model_repo, name="catboost-churn", version="1.0", price_per_row=Decimal("0.10"))
     _get_or_create_model(session, model_repo, name="xgb-fraud", version="1.0", price_per_row=Decimal("0.50"))
