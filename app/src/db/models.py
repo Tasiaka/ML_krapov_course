@@ -25,6 +25,7 @@ class UserDB(SQLModel, table=True):
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(index=True, nullable=False, unique=True)
+    password_hash: str = Field(default="", nullable=False)
     role: UserRole = Field(
     default=UserRole.USER,
     sa_column=Column(SAEnum(UserRole, name="user_role_enum"), nullable=False),)

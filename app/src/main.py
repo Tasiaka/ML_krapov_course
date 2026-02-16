@@ -27,12 +27,19 @@ def cmd_show_demo() -> None:
             print(f" - {m.name}:{m.version} price={m.price_per_row} active={m.is_active}")
 
 
+def cmd_run_api() -> None:
+    import uvicorn
+
+    uvicorn.run("src.api.app:app", host="0.0.0.0", port=8000, reload=True)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="ml-service", description="Local entrypoint for the ML service project")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init-db", help="Create DB tables and load demo data.").set_defaults(func=lambda _: cmd_init_db())
     sub.add_parser("show-demo", help="Print demo users and ML models.").set_defaults(func=lambda _: cmd_show_demo())
+    sub.add_parser("run-api", help="Run FastAPI app (dev mode). ").set_defaults(func=lambda _: cmd_run_api())
     return p
 
 

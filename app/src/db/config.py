@@ -29,3 +29,5 @@ def load_db_config() -> DBConfig:
 
     return DBConfig(database_url=f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db}")
 
+
+
