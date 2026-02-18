@@ -14,13 +14,24 @@ from .enums import UserRole
 DEMO_ADMIN_EMAIL = "admin@demo.local"
 DEMO_USER_EMAIL = "user@demo.local"
 
+DEMO_ADMIN_PASSWORD = "admin"
+DEMO_USER_PASSWORD = "user"
 
-def _get_or_create_user(session: Session, repo: UserRepository, *, email: str, role: str, initial_balance: Decimal) -> UserDB:
+
+def _get_or_create_user(
+    session: Session,
+    repo: UserRepository,
+    *,
+    email: str,
+    role: str,
+    initial_balance: Decimal,
+    password_hash: str = "",
+) -> UserDB:
     user = repo.get_by_email(session, email=email)
     if user:
         return user
 
-    user = UserDB(email=email, role=role, balance=initial_balance)
+    user = UserDB(email=email, role=role, balance=initial_balance, password_hash=password_hash)
     return repo.add(session, user)
 
 
@@ -37,8 +48,26 @@ def init_demo_data(session: Session) -> None:
     user_repo = UserRepository()
     model_repo = MLModelRepository()
 
-    _get_or_create_user(session, user_repo, email=DEMO_ADMIN_EMAIL, role=UserRole.ADMIN, initial_balance=Decimal("10000"))
-    _get_or_create_user(session, user_repo, email=DEMO_USER_EMAIL, role=UserRole.USER, initial_balance=Decimal("100"))
+    # password_hash заполняем в init_db (через сервис хэширования),
+    # но пока кладём сразу
+    from ..security.passwords import hash_password
+
+    _get_or_create_user(
+        session,
+        user_repo,
+        email=DEMO_ADMIN_EMAIL,
+        role=UserRole.ADMIN,
+        initial_balance=Decimal("10000"),
+        password_hash=hash_password(DEMO_ADMIN_PASSWORD),
+    )
+    _get_or_create_user(
+        session,
+        user_repo,
+        email=DEMO_USER_EMAIL,
+        role=UserRole.USER,
+        initial_balance=Decimal("100"),
+        password_hash=hash_password(DEMO_USER_PASSWORD),
+    )
 
     _get_or_create_model(session, model_repo, name="catboost-churn", version="1.0", price_per_row=Decimal("0.10"))
     _get_or_create_model(session, model_repo, name="xgb-fraud", version="1.0", price_per_row=Decimal("0.50"))
