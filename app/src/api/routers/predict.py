@@ -40,3 +40,36 @@ def predict(
     )
 
 
+@router.post("/sync", response_model=PredictOut)
+def predict_sync(
+    payload: PredictIn,
+    session: Session = Depends(get_session),
+    user: UserDB = Depends(get_current_user),
+):
+    """Синхронный предикт
+
+    Нужен для Web UI: сразу возвращает результат, валидацию строк
+    и списание кредитов (только за валидные строки)
+    """
+    svc = PredictionService()
+    item = svc.predict(
+        session,
+        user=user,
+        model_name=payload.model_name,
+        model_version=payload.model_version,
+        rows=payload.rows,
+    )
+
+    errors = [RowErrorOut(**e) for e in (item.errors or [])]
+    return PredictOut(
+        request_id=item.id,
+        status=item.status.value,
+        charged=item.charged,
+        valid_rows=item.valid_rows,
+        invalid_rows=item.invalid_rows,
+        errors=errors,
+        predictions=item.predictions or [],
+        created_at=item.created_at,
+    )
+
+

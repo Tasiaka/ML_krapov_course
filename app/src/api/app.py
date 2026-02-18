@@ -9,6 +9,7 @@ from .routers.history import router as history_router
 from .routers.predict import router as predict_router
 from .routers.system import router as system_router
 from .routers.users import router as users_router
+from ..web.router import router as web_router
 
 
 def create_app() -> FastAPI:
@@ -22,6 +23,9 @@ def create_app() -> FastAPI:
     app.include_router(balance_router, prefix="/balance", tags=["balance"])
     app.include_router(predict_router, prefix="/predict", tags=["predict"])
     app.include_router(history_router, prefix="/history", tags=["history"])
+
+    # Web UI
+    app.include_router(web_router)
 
     return app
 

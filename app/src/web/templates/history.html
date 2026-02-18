@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set title = "История" %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0">История</h2>
+      <div class="text-muted">{{ user.email }}</div>
+    </div>
+    <div class="text-end">
+      <div class="h5 mb-0">Баланс: {{ user.balance }}</div>
+    </div>
+  </div>
+
+  <h5 class="mt-4">Операции (транзакции)</h5>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Тип</th>
+          <th>Сумма</th>
+          <th>Статус</th>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+          <tr>
+            <td>{{ t.created_at }}</td>
+            <td>{{ t.tx_type }}</td>
+            <td>{{ t.amount }}</td>
+            <td>{{ t.status }}</td>
+            <td class="text-muted">{{ t.id }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h5 class="mt-4">ML‑запросы / предсказания</h5>
+  <div class="table-responsive">
+    <table class="table table-sm table-striped">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Статус</th>
+          <th>valid</th>
+          <th>invalid</th>
+          <th>Списано</th>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in predictions %}
+          <tr>
+            <td>{{ p.created_at }}</td>
+            <td>{{ p.status }}</td>
+            <td>{{ p.valid_rows }}</td>
+            <td>{{ p.invalid_rows }}</td>
+            <td>{{ p.charged }}</td>
+            <td class="text-muted">{{ p.id }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}
