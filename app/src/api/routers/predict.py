@@ -19,7 +19,7 @@ def predict(
     user: UserDB = Depends(get_current_user),
 ):
     svc = PredictionService()
-    item = svc.predict(
+    item = svc.enqueue(
         session,
         user=user,
         model_name=payload.model_name,
