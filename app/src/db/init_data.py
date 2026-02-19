@@ -14,8 +14,8 @@ from .enums import UserRole
 DEMO_ADMIN_EMAIL = "admin@demo.local"
 DEMO_USER_EMAIL = "user@demo.local"
 
-DEMO_ADMIN_PASSWORD = "admin"
-DEMO_USER_PASSWORD = "user"
+DEMO_ADMIN_PASSWORD = "admin1"
+DEMO_USER_PASSWORD = "user12"
 
 
 def _get_or_create_user(
