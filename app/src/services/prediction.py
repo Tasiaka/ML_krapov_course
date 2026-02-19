@@ -13,6 +13,7 @@ from ..db.models import MLModelDB, PredictionHistoryDB, UserDB
 from ..repositories.billing import BillingRepository
 from ..repositories.history import PredictionHistoryRepository
 from ..repositories.ml_models import MLModelRepository
+from ..rabbitmq.client import publish_task
 
 
 @dataclass(frozen=True)
@@ -94,6 +95,65 @@ class PredictionService:
             charged=charged,
         )
         self._history.add(session, item)
+        return item
+
+    def enqueue(
+        self,
+        session: Session,
+        *,
+        user: UserDB,
+        model_name: str,
+        model_version: str,
+        rows: list[dict[str, Any]],
+    ) -> PredictionHistoryDB:
+        """Асинхронный сценарий (задание №5)
+
+        Publisher:
+        - проверяет, что модель существует и активна;
+        - создает запись истории со статусом QUEUED;
+        - отправляет задачу в RabbitMQ;
+        - НЕ валидирует rows и НЕ делает предикт (это задача воркера).
+        """
+
+        model: MLModelDB | None = self._models.get_by_name_version(session, name=model_name, version=model_version)
+        if model is None:
+            raise HTTPException(status_code=404, detail="Model not found")
+        if not model.is_active:
+            raise HTTPException(status_code=409, detail="Model is disabled")
+
+        task_id = uuid4()
+        item = PredictionHistoryDB(
+            id=task_id,
+            user_id=user.id,
+            model_id=model.id,
+            job_id=task_id,
+            upload_id=None,
+            status=PredictionStatus.QUEUED,
+            valid_rows=0,
+            invalid_rows=0,
+            errors=[],
+            predictions=[],
+            charged=Decimal("0"),
+        )
+        self._history.add(session, item)
+
+
+        features: dict[str, Any]
+        if len(rows) == 1:
+            features = rows[0]
+        else:
+            features = {"rows": rows}
+
+        publish_task(
+            {
+                "task_id": str(task_id),
+                "user_id": str(user.id),
+                "model": {"name": model_name, "version": model_version},
+                "features": features,
+                "timestamp": item.created_at.isoformat(),
+            }
+        )
+
         return item
 
 

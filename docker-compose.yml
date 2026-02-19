@@ -15,6 +15,44 @@ services:
     expose:
       - "${APP_PORT:-8000}"
 
+  ml-worker:
+    build:
+      context: ./app
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      WORKER_ID: "worker-1"
+      RABBITMQ_CONNECT_RETRIES: "60"
+      RABBITMQ_CONNECT_SLEEP: "1.0"
+    volumes:
+      - ./app:/app
+    depends_on:
+      database:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    command: ["python", "-m", "src.worker"]
+
+  ml-worker-2:
+    build:
+      context: ./app
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      WORKER_ID: "worker-2"
+      RABBITMQ_CONNECT_RETRIES: "60"
+      RABBITMQ_CONNECT_SLEEP: "1.0"
+    volumes:
+      - ./app:/app
+    depends_on:
+      database:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    command: ["python", "-m", "src.worker"]
+
   web-proxy:
     image: nginx:1.25-alpine
     depends_on:
@@ -36,6 +74,11 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
       - rabbitmq_volume:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   database:
     image: postgres:15-alpine

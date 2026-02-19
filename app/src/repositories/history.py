@@ -23,4 +23,15 @@ class PredictionHistoryRepository:
         )
         return session.exec(stmt).all()
 
+    def get(self, session: Session, item_id: UUID) -> PredictionHistoryDB | None:
+        return session.get(PredictionHistoryDB, item_id)
+
+    def save(self, session: Session, item: PredictionHistoryDB) -> PredictionHistoryDB:
+        """Сохранить изменения (для воркера)"""
+        session.add(item)
+        session.flush()
+        session.refresh(item)
+        return item
+
+
 
