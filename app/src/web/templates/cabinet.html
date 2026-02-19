@@ -61,7 +61,7 @@
               <input class="form-control" type="file" name="rows_file" accept="application/json,.json" />
             </div>
 
-            <button class="btn btn-primary mt-3" type="submit">Отправить</button>
+            <button class="btn btn-primary mt-3" type="submit">Отправить (в очередь)</button>
           </form>
         </div>
       </div>
@@ -73,6 +73,11 @@
       <div class="card-body">
         <h5 class="card-title">Результат</h5>
 
+        <div class="text-muted mb-2">
+          ID запроса: <code>{{ predict_result.id }}</code>
+          · <a href="/requests/{{ predict_result.id }}">Открыть статус/результат</a>
+        </div>
+
         <div class="row g-3">
           <div class="col-md-3"><b>Статус:</b> {{ predict_result.status }}</div>
           <div class="col-md-3"><b>Списано:</b> {{ predict_result.charged }}</div>
@@ -80,9 +85,17 @@
           <div class="col-md-3"><b>Отклонено:</b> {{ predict_result.invalid_rows }}</div>
         </div>
 
-        {% if predict_result.errors and predict_result.errors|length > 0 %}
+        {% if predict_result.status == 'queued' %}
+          <div class="alert alert-info mt-3 mb-0">
+            Задача поставлена в очередь. Обновите страницу статуса, чтобы увидеть результат.
+            <a class="btn btn-sm btn-outline-primary ms-2" href="/requests/{{ predict_result.id }}">Проверить статус</a>
+          </div>
+        {% endif %}
+
+        {% set rejected = predict_result.rejected_rows if predict_result.rejected_rows is defined else None %}
+        {% if rejected and rejected|length > 0 %}
           <hr />
-          <h6>Ошибочные данные</h6>
+          <h6>Отклонённые данные</h6>
           <div class="table-responsive">
             <table class="table table-sm">
               <thead>
@@ -90,19 +103,27 @@
                   <th>row_index</th>
                   <th>field</th>
                   <th>message</th>
+                  <th>row</th>
                 </tr>
               </thead>
               <tbody>
-                {% for e in predict_result.errors %}
+                {% for e in rejected %}
                   <tr>
                     <td>{{ e.row_index if e.row_index is not none else e['row_index'] }}</td>
                     <td>{{ e.field if e.field is not none else e['field'] }}</td>
                     <td>{{ e.message if e.message is not none else e['message'] }}</td>
+                    <td class="text-muted"><code>{{ e.row if e.row is not none else e.get('row') }}</code></td>
                   </tr>
                 {% endfor %}
               </tbody>
             </table>
           </div>
+        {% endif %}
+
+        {% if predict_result.valid_data and predict_result.valid_data|length > 0 %}
+          <hr />
+          <h6>Данные, которые пошли в обработку</h6>
+          <pre class="bg-light border rounded p-3">{{ predict_result.valid_data | tojson(indent=2) }}</pre>
         {% endif %}
 
         {% if predict_result.predictions and predict_result.predictions|length > 0 %}

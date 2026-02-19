@@ -21,7 +21,7 @@ from ..security.tokens import create_access_token
 from ..services.auth import AuthService
 from ..services.balance import BalanceService
 from ..services.prediction import PredictionService
-from .deps import get_current_user_web
+from .deps import get_current_user_web, get_optional_user_web
 
 
 router = APIRouter(include_in_schema=False)
@@ -45,13 +45,19 @@ def _redirect(url: str) -> RedirectResponse:
 
 
 @router.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    return _render(request, "index.html")
+def home(
+    request: Request,
+    user: UserDB | None = Depends(get_optional_user_web),
+):
+    return _render(request, "index.html", user=user)
 
 
 @router.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
-    return _render(request, "register.html", error=None)
+def register_page(
+    request: Request,
+    user: UserDB | None = Depends(get_optional_user_web),
+):
+    return _render(request, "register.html", user=user, error=None)
 
 
 @router.post("/register")
@@ -65,16 +71,20 @@ def register_action(
         svc = AuthService()
         svc.register(session, email=email, password=password)
     except HTTPException as e:
-        return _render(request, "register.html", error=str(e.detail))
+        return _render(request, "register.html", user=None, error=str(e.detail))
     except Exception as e:
-        return _render(request, "register.html", error=str(e))
+        return _render(request, "register.html", user=None, error=str(e))
 
     return _redirect("/login?registered=1")
 
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request, registered: int | None = None):
-    return _render(request, "login.html", error=None, registered=bool(registered))
+def login_page(
+    request: Request,
+    registered: int | None = None,
+    user: UserDB | None = Depends(get_optional_user_web),
+):
+    return _render(request, "login.html", user=user, error=None, registered=bool(registered))
 
 
 @router.post("/login")
@@ -88,9 +98,9 @@ def login_action(
         svc = AuthService()
         user = svc.authenticate(session, email=email, password=password)
     except HTTPException as e:
-        return _render(request, "login.html", error=str(e.detail), registered=False)
+        return _render(request, "login.html", user=None, error=str(e.detail), registered=False)
     except Exception as e:
-        return _render(request, "login.html", error=str(e), registered=False)
+        return _render(request, "login.html", user=None, error=str(e), registered=False)
 
     token = create_access_token(user_id=user.id, email=user.email)
     resp = _redirect("/cabinet")
@@ -151,6 +161,33 @@ def cabinet(
     )
 
 
+@router.get("/requests/{request_id}", response_class=HTMLResponse)
+def request_status_page(
+    request: Request,
+    request_id: str,
+    user: UserDB = Depends(get_current_user_web),
+    session: Session = Depends(get_session),
+):
+    """Страница статуса/результата конкретного ML‑запроса"""
+
+    from uuid import UUID
+
+    try:
+        rid = UUID(request_id)
+    except Exception:
+        return _render(request, "request.html", user=user, item=None, error="Некорректный идентификатор")
+
+    item = PredictionHistoryRepository().get(session, rid)
+    if item is None:
+        return _render(request, "request.html", user=user, item=None, error="Запрос не найден")
+
+    if user.role != UserRole.ADMIN and item.user_id != user.id:
+        return _render(request, "request.html", user=user, item=None, error="Запрос не найден")
+
+    session.refresh(user)
+    return _render(request, "request.html", user=user, item=item, error=None)
+
+
 @router.post("/cabinet/topup", response_class=HTMLResponse)
 def cabinet_topup(
     request: Request,
@@ -160,8 +197,16 @@ def cabinet_topup(
 ):
     models = MLModelRepository().get_active(session)
     try:
+        try:
+            amt = Decimal(amount)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Введите корректную сумму")
+
+        if amt <= 0:
+            raise HTTPException(status_code=400, detail="Сумма пополнения должна быть больше нуля")
+
         svc = BalanceService()
-        svc.top_up(session, user_id=user.id, amount=Decimal(amount))
+        svc.top_up(session, user_id=user.id, amount=amt)
         session.refresh(user)
         return _render(
             request,
@@ -171,6 +216,17 @@ def cabinet_topup(
             predict_result=None,
             error=None,
             topup_ok=True,
+        )
+    except HTTPException as e:
+        session.refresh(user)
+        return _render(
+            request,
+            "cabinet.html",
+            user=user,
+            models=models,
+            predict_result=None,
+            error=str(e.detail),
+            topup_ok=False,
         )
     except Exception as e:
         session.refresh(user)
@@ -194,6 +250,8 @@ def cabinet_predict(
     user: UserDB = Depends(get_current_user_web),
     session: Session = Depends(get_session),
 ):
+    models = MLModelRepository().get_active(session)
+
     try:
         model_name, model_version = model_key.split("|", 1)
     except ValueError:
@@ -207,8 +265,6 @@ def cabinet_predict(
             error="Некорректный выбор модели",
             topup_ok=False,
         )
-
-    models = MLModelRepository().get_active(session)
 
     rows, parse_err = _parse_rows(rows_json, rows_file)
     if parse_err:
@@ -225,7 +281,7 @@ def cabinet_predict(
 
     try:
         svc = PredictionService()
-        item = svc.predict(
+        item = svc.enqueue(
             session,
             user=user,
             model_name=model_name,
@@ -240,6 +296,17 @@ def cabinet_predict(
             models=models,
             predict_result=item,
             error=None,
+            topup_ok=False,
+        )
+    except HTTPException as e:
+        session.refresh(user)
+        return _render(
+            request,
+            "cabinet.html",
+            user=user,
+            models=models,
+            predict_result=None,
+            error=str(e.detail),
             topup_ok=False,
         )
     except Exception as e:

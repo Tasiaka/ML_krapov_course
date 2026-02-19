@@ -62,6 +62,13 @@ class RowErrorOut(BaseModel):
     message: str
 
 
+class RejectedRowOut(BaseModel):
+    row_index: int
+    row: Any
+    field: str
+    message: str
+
+
 class PredictOut(BaseModel):
     request_id: UUID
     status: str
@@ -69,6 +76,8 @@ class PredictOut(BaseModel):
     valid_rows: int
     invalid_rows: int
     errors: list[RowErrorOut]
+    valid_data: list[dict[str, Any]] = []
+    rejected_rows: list[RejectedRowOut] = []
     predictions: list[dict[str, Any]]
     created_at: datetime
 

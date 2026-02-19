@@ -29,4 +29,27 @@ def get_current_user_web(
     return user
 
 
+def get_optional_user_web(
+    access_token: str | None = Cookie(default=None),
+    session: Session = Depends(get_session),
+) -> UserDB | None:
+    """Опциональная версия зависимости
+
+    Нужна для публичных страниц (главная/логин/регистрация), чтобы:
+    - показывать корректное меню;
+    - не возвращать 401 при отсутствии cookie
+    """
+
+    if not access_token:
+        return None
+
+    try:
+        payload = decode_access_token(access_token)
+    except Exception:
+        return None
+
+    repo = UserRepository()
+    return repo.get(session, payload.sub)
+
+
 

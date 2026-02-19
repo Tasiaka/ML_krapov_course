@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% set title = "Статус запроса" %}
+
+{% block content %}
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+      <h2 class="mb-0">Статус ML‑запроса</h2>
+      <div class="text-muted">{{ user.email }}</div>
+    </div>
+    <div class="text-end">
+      <div class="h5 mb-0">Баланс: {{ user.balance }}</div>
+    </div>
+  </div>
+
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
+
+  {% if item %}
+    {% if item.status == 'queued' %}
+      <div class="alert alert-info">
+        Задача в очереди. Страница обновится автоматически.
+      </div>
+      <meta http-equiv="refresh" content="2" />
+    {% endif %}
+
+    <div class="card">
+      <div class="card-body">
+        <div class="text-muted mb-2">ID: <code>{{ item.id }}</code> · создано: {{ item.created_at }}</div>
+
+        <div class="row g-3">
+          <div class="col-md-3"><b>Статус:</b> {{ item.status }}</div>
+          <div class="col-md-3"><b>Списано:</b> {{ item.charged }}</div>
+          <div class="col-md-3"><b>Обработано:</b> {{ item.valid_rows }}</div>
+          <div class="col-md-3"><b>Отклонено:</b> {{ item.invalid_rows }}</div>
+        </div>
+
+        {% if item.rejected_rows and item.rejected_rows|length > 0 %}
+          <hr />
+          <h6>Отклонённые данные</h6>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>row_index</th>
+                  <th>field</th>
+                  <th>message</th>
+                  <th>row</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for e in item.rejected_rows %}
+                  <tr>
+                    <td>{{ e.row_index if e.row_index is not none else e['row_index'] }}</td>
+                    <td>{{ e.field if e.field is not none else e['field'] }}</td>
+                    <td>{{ e.message if e.message is not none else e['message'] }}</td>
+                    <td class="text-muted"><code>{{ e.row if e.row is not none else e.get('row') }}</code></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+
+        {% if item.valid_data and item.valid_data|length > 0 %}
+          <hr />
+          <h6>Данные, которые пошли в обработку</h6>
+          <pre class="bg-light border rounded p-3">{{ item.valid_data | tojson(indent=2) }}</pre>
+        {% endif %}
+
+        {% if item.predictions and item.predictions|length > 0 %}
+          <hr />
+          <h6>Предсказания</h6>
+          <pre class="bg-light border rounded p-3 mb-0">{{ item.predictions | tojson(indent=2) }}</pre>
+        {% endif %}
+
+        <div class="mt-3">
+          <a class="btn btn-outline-secondary" href="/history">Назад в историю</a>
+          <a class="btn btn-outline-primary ms-2" href="/requests/{{ item.id }}">Обновить</a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

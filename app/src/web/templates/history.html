@@ -49,6 +49,7 @@
           <th>invalid</th>
           <th>Списано</th>
           <th>ID</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -60,6 +61,7 @@
             <td>{{ p.invalid_rows }}</td>
             <td>{{ p.charged }}</td>
             <td class="text-muted">{{ p.id }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="/requests/{{ p.id }}">Подробнее</a></td>
           </tr>
         {% endfor %}
       </tbody>
