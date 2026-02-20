@@ -1,32 +1,18 @@
-from decimal import Decimal
-import pytest
-
-
-def test_repeat_authorization_returns_new_token(client, register_user):
+def test_repeat_authorization_is_ok(client, user):
     """
-    Повторная авторизация должна быть успешной
-    и возвращать валидный access token
+    Повторная авторизация (re-login):
+    - логинимся ещё раз теми же кредами
+    - получаем 200 и access_token
     """
-    email, password = register_user()
-
-
-    r1 = client.post("/auth/login", json={
-        "email": email,
-        "password": password
-    })
-    assert r1.status_code == 200
-    token1 = r1.json()["access_token"]
-
-
-    r2 = client.post("/auth/login", json={
-        "email": email,
-        "password": password
-    })
-    assert r2.status_code == 200
-    token2 = r2.json()["access_token"]
-
-    assert token1 is not None
-    assert token2 is not None
+    r = client.post(
+        "/auth/login",
+        json={"email": user.email, "password": user.password},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert "access_token" in data
+    assert isinstance(data["access_token"], str)
+    assert len(data["access_token"]) > 10
 
 
 

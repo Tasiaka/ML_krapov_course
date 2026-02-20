@@ -1,44 +1,40 @@
 from decimal import Decimal
 
+from src.tests_e2e.conftest import get_balance, get_transactions, predict_sync, topup
 
-def test_rejected_transaction_saved_in_history(client, register_user, topup):
+
+MODEL_NAME = "catboost-churn"
+MODEL_VERSION = "1.0"
+
+
+def test_rejected_charge_is_saved_when_not_enough_credits(client, user):
     """
-    При недостаточном балансе должна:
-    - вернуться ошибка 402
-    - НЕ измениться баланс
-    - появиться транзакция со статусом rejected
+    При недостаточном балансе:
+    - /predict должен вернуть 402
+    - баланс не изменяется
+    - в истории транзакций должна появиться charge со статусом rejected
     """
-    email, password = register_user()
-
-    login = client.post("/auth/login", json={
-        "email": email,
-        "password": password
-    })
-    token = login.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-
-    topup(client, token=token, amount=Decimal("0.01"))
-
+    topup(client, token=user.token, amount=Decimal("0.01"))
+    before = get_balance(client, token=user.token)
 
     rows = [{"a": 1}]
-    r = client.post("/predict", json={
-        "model_name": "default",
-        "model_version": "1",
-        "rows": rows
-    }, headers=headers)
-
-    assert r.status_code == 402
-
-
-    history = client.get("/history/transactions", headers=headers)
-    assert history.status_code == 200
-
-    txs = history.json()
-    assert any(
-        t["tx_type"] == "charge" and t["status"] == "rejected"
-        for t in txs
+    r = predict_sync(
+        client,
+        token=user.token,
+        model_name=MODEL_NAME,
+        model_version=MODEL_VERSION,
+        rows=rows,
     )
+    assert r.status_code == 402, r.text
+
+    after = get_balance(client, token=user.token)
+    assert after == before
+
+    txs = get_transactions(client, token=user.token)
+    assert any(
+        t.get("tx_type") == "charge" and t.get("status") == "rejected"
+        for t in txs
+    ), txs
 
 
 
