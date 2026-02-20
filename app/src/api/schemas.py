@@ -39,7 +39,7 @@ class BalanceOut(BaseModel):
 
 
 class TopUpIn(BaseModel):
-    amount: Decimal = Field(gt=0)
+    amount: Decimal
 
 
 class TransactionOut(BaseModel):

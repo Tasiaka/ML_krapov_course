@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from ..deps import get_current_user, get_session
@@ -23,6 +23,9 @@ def top_up(
     session: Session = Depends(get_session),
     user: UserDB = Depends(get_current_user),
 ):
+    if payload.amount is None or payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be > 0")
+
     svc = BalanceService()
     svc.top_up(session, user_id=user.id, amount=payload.amount)
     session.refresh(user)
