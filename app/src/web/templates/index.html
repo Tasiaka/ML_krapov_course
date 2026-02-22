@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% set title = "Главная" %}
+
+{% block content %}
+  <div class="p-4 p-md-5 mb-4 rounded text-bg-light border">
+    <div class="col-lg-8 px-0">
+      <h1 class="display-6">Личный кабинет ML‑сервиса</h1>
+      <p class="lead my-3">
+        Сервис выполняет ML‑предсказания по загруженным данным. Доступ к предиктам — по кредитам на балансе.
+      </p>
+      <p class="mb-0">
+        {% if user %}
+          <a href="/cabinet" class="btn btn-primary">Перейти в кабинет</a>
+        {% else %}
+          <a href="/login" class="btn btn-primary">Войти</a>
+          <a href="/register" class="btn btn-outline-primary ms-2">Создать аккаунт</a>
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Что умеет</h5>
+          <ul class="mb-0">
+            <li>Регистрация и авторизация</li>
+            <li>Баланс и пополнение</li>
+            <li>Отправка данных на ML‑предикт</li>
+            <li>История операций и предсказаний</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">Как работает</h5>
+          <ol class="mb-0">
+            <li>Вы пополняете баланс</li>
+            <li>Загружаете данные (JSON)</li>
+            <li>Сервис валидирует строки и считает стоимость</li>
+            <li>Списание — только при успешной обработке строк</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body">
+          <h5 class="card-title">REST API</h5>
+          <p class="mb-0">API доступен в том же приложении (FastAPI). Web‑интерфейс использует тот же backend.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

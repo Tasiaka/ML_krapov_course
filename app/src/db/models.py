@@ -97,6 +97,19 @@ class PredictionHistoryDB(SQLModel, table=True):
     errors: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False))
     predictions: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False))
 
+    input_rows: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False),
+    )
+    valid_data: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False),
+    )
+    rejected_rows: list[dict[str, Any]] = Field(
+        default_factory=list,
+        sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False),
+    )
+
     charged: Decimal = Field(default=Decimal("0"), nullable=False, max_digits=18, decimal_places=2)
     created_at: datetime = Field(default_factory=utc_now, nullable=False, index=True)
 

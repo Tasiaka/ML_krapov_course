@@ -88,6 +88,7 @@ def _process_task(payload: dict[str, Any], worker_id: str) -> None:
         item.valid_rows = len(valid_rows)
         item.invalid_rows = len(errors)
         item.errors = errors
+        item.valid_data = valid_rows
         item.predictions = predictions
 
         item.charged = Decimal("0")

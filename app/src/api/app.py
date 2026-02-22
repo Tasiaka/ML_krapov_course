@@ -9,6 +9,27 @@ from .routers.history import router as history_router
 from .routers.predict import router as predict_router
 from .routers.system import router as system_router
 from .routers.users import router as users_router
+from ..web.router import router as web_router
+
+
+def _init_db_on_startup() -> None:
+    """Ensure DB schema + demo data exist
+
+    Делает запуск через docker-compose полностью воспроизводимым: достаточно
+    `docker compose up`, без ручного шага `python -m src.main init-db`
+
+    Идемпотентно:
+    - create_db_and_tables() использует SQLModel.metadata.create_all()
+    - init_demo_data() использует get_or_create
+    """
+
+    from ..db.session import create_db_and_tables, make_engine, session_scope
+    from ..db.init_data import init_demo_data
+
+    engine = make_engine(echo=False)
+    create_db_and_tables(engine)
+    with session_scope(engine) as session:
+        init_demo_data(session)
 
 
 def create_app() -> FastAPI:
@@ -16,12 +37,19 @@ def create_app() -> FastAPI:
 
     setup_exception_handlers(app)
 
-    app.include_router(system_router)
+    app.include_router(system_router, prefix="/api")
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(users_router, prefix="/users", tags=["users"])
     app.include_router(balance_router, prefix="/balance", tags=["balance"])
     app.include_router(predict_router, prefix="/predict", tags=["predict"])
     app.include_router(history_router, prefix="/history", tags=["history"])
+
+    # Web UI
+    app.include_router(web_router)
+
+    @app.on_event("startup")
+    def _startup() -> None:
+        _init_db_on_startup()
 
     return app
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import HTTPException
 from sqlmodel import Session
+from sqlmodel import select
 
 from ..db.models import UserDB
 from ..db.enums import UserRole
@@ -30,6 +31,13 @@ class AuthService:
             raise HTTPException(status_code=401, detail="Invalid email or password")
 
         return user
+
+    def get_user_by_email(self, session: Session, *, email: str) -> UserDB | None:
+        return self._users.get_by_email(session, email=email)
+
+    def list_users(self, session: Session, *, limit: int = 200) -> list[UserDB]:
+        stmt = select(UserDB).order_by(UserDB.created_at.desc()).limit(limit)
+        return list(session.exec(stmt).all())
 
 
 
