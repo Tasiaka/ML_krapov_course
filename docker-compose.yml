@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   app:
     build:
@@ -10,8 +8,10 @@ services:
     volumes:
       - ./app:/app
     depends_on:
-      - database
-      - rabbitmq
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     expose:
       - "${APP_PORT:-8000}"
 
@@ -29,7 +29,7 @@ services:
       - ./app:/app
     depends_on:
       database:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     command: ["python", "-m", "src.worker"]
@@ -48,10 +48,29 @@ services:
       - ./app:/app
     depends_on:
       database:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
     command: ["python", "-m", "src.worker"]
+
+  tests:
+    build:
+      context: ./app
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      BASE_URL: "http://web-proxy"
+    volumes:
+      - ./app:/app
+    depends_on:
+      web-proxy:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      database:
+        condition: service_healthy
+    command: ["pytest", "-q", "src/tests_e2e"]
 
   web-proxy:
     image: nginx:1.25-alpine
@@ -92,6 +111,11 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   postgres_volume:

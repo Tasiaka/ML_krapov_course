@@ -96,6 +96,7 @@ class PredictionService:
             try:
                 self._billing.charge(session, user.id, charged)
             except RuntimeError:
+                session.commit()
                 raise HTTPException(status_code=402, detail="Not enough credits")
 
             status = PredictionStatus.APPLIED
