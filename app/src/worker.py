@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+
+from .common.logging import setup_logging
+
 import os
 import time
 from decimal import Decimal
@@ -18,11 +21,8 @@ from .repositories.ml_models import MLModelRepository
 from .rabbitmq.config import get_rabbitmq_dsn
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger("ml-worker")
+setup_logging('worker')
+logger = logging.getLogger('ml-worker')
 
 
 def _validate_features(features: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:

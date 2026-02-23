@@ -14,6 +14,7 @@ from ..repositories.billing import BillingRepository
 from ..repositories.history import PredictionHistoryRepository
 from ..repositories.ml_models import MLModelRepository
 from ..rabbitmq.client import publish_task
+from ..common import metrics
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,9 @@ class PredictionService:
         valid_count = len(valid_rows)
         invalid_count = len(errors)
 
+        metrics.ML_ROWS_TOTAL.labels(model.name, model.version, "sync", "valid").inc(valid_count)
+        metrics.ML_ROWS_TOTAL.labels(model.name, model.version, "sync", "invalid").inc(invalid_count)
+
         predictions: list[dict[str, Any]] = []
         for row in valid_rows:
             predictions.append({"prediction": float(abs(hash(str(sorted(row.items())))) % 1000) / 1000.0})
@@ -96,6 +100,7 @@ class PredictionService:
             try:
                 self._billing.charge(session, user.id, charged)
             except RuntimeError:
+                metrics.ML_REQUESTS_TOTAL.labels(model.name, model.version, "sync", "rejected_insufficient_funds").inc()
                 session.commit()
                 raise HTTPException(status_code=402, detail="Not enough credits")
 
@@ -151,6 +156,9 @@ class PredictionService:
         valid_count = len(valid_rows)
         invalid_count = len(row_errors)
 
+        metrics.ML_ROWS_TOTAL.labels(model.name, model.version, "async", "valid").inc(valid_count)
+        metrics.ML_ROWS_TOTAL.labels(model.name, model.version, "async", "invalid").inc(invalid_count)
+
         if valid_count == 0:
             item = PredictionHistoryDB(
                 user_id=user.id,
@@ -168,6 +176,7 @@ class PredictionService:
                 charged=Decimal("0"),
             )
             self._history.add(session, item)
+            metrics.ML_REQUESTS_TOTAL.labels(model.name, model.version, "async", item.status.value).inc()
             return item
 
         estimated = Decimal(model.price_per_row) * Decimal(valid_count)
@@ -194,6 +203,7 @@ class PredictionService:
             charged=Decimal("0"),
         )
         self._history.add(session, item)
+        metrics.ML_REQUESTS_TOTAL.labels(model.name, model.version, "async", item.status.value).inc()
 
         features: dict[str, Any] = {"rows": valid_rows}
         publish_task(

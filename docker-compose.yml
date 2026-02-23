@@ -70,7 +70,7 @@ services:
         condition: service_healthy
       database:
         condition: service_healthy
-    command: ["pytest", "-q", "src/tests_e2e"]
+    command: ["pytest", "-q", "src/tests", "src/tests_e2e"]
 
   web-proxy:
     image: nginx:1.25-alpine

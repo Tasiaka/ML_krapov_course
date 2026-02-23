@@ -8,6 +8,8 @@ from ..db.models import UserDB
 from ..db.enums import UserRole
 from ..repositories.users import UserRepository
 from ..security.passwords import hash_password, verify_password
+from ..common import metrics
+
 
 
 class AuthService:
@@ -20,7 +22,9 @@ class AuthService:
             raise HTTPException(status_code=409, detail="User already exists")
 
         user = UserDB(email=email, role=UserRole.USER, password_hash=hash_password(password))
-        return self._users.add(session, user)
+        created = self._users.add(session, user)
+        metrics.REGISTERED_USERS_TOTAL.inc()
+        return created
 
     def authenticate(self, session: Session, *, email: str, password: str) -> UserDB:
         user = self._users.get_by_email(session, email=email)

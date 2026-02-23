@@ -7,6 +7,8 @@ from sqlmodel import Session, select
 
 from ..db.models import TransactionDB, UserDB
 from ..db.enums import TransactionType, TransactionStatus
+from ..common import metrics
+
 
 
 class BillingRepository:
@@ -31,6 +33,8 @@ class BillingRepository:
         session.add(user)
         session.flush()
         session.refresh(tx)
+        metrics.BILLING_TOPUPS_TOTAL.inc()
+        metrics.REVENUE_TOTAL.inc(float(amount))
         return tx
 
     def charge(self, session: Session, user_id: UUID, amount: Decimal) -> TransactionDB:
@@ -48,6 +52,7 @@ class BillingRepository:
             session.add(tx)
             session.flush()
             session.refresh(tx)
+            metrics.BILLING_CHARGES_TOTAL.labels(result="rejected").inc()
             raise RuntimeError("not enough credits")
 
         tx = TransactionDB(user_id=user_id, amount=amount, tx_type=TransactionType.CHARGE, status=TransactionStatus.APPLIED)
@@ -57,6 +62,7 @@ class BillingRepository:
         session.add(user)
         session.flush()
         session.refresh(tx)
+        metrics.BILLING_CHARGES_TOTAL.labels(result="applied").inc()
         return tx
 
 

@@ -1,3 +1,103 @@
+# ML Service (Karpov Course) — финальный проект
+
+Сервис “личный кабинет ML‑сервиса” с:
+- регистрацией и авторизацией,
+- балансом (пополнение и списание кредитов),
+- ML‑предиктами (sync + async через RabbitMQ),
+- историей транзакций и ML‑запросов,
+- Web UI (Jinja2) + REST API (FastAPI),
+- логированием и встроенным мониторингом (health/metrics endpoints).
+
+## Архитектура
+
+- **web-proxy (nginx)** — единая точка входа (порт `80`)
+- **app (FastAPI)** — REST API + Web UI
+- **ml-worker / ml-worker-2** — воркеры, читают очередь RabbitMQ и выполняют async‑предикты
+- **postgres** — хранилище пользователей/баланса/истории
+- **rabbitmq** — брокер сообщений (один publisher → несколько consumers)
+- **/metrics** — JSON‑метрики приложения
+- **/api/health** — проверка работоспособности (DB + RabbitMQ)
+
+## Быстрый старт (Docker Compose)
+
+### 1) Подготовьте окружение
+Скопируйте шаблон окружения и при необходимости поменяйте значения:
+
+```bash
+cp .env.example .env
+```
+
+### 2) Запуск
+```bash
+docker compose up -d --build
+docker compose ps
+```
+
+### 3) Открыть сервисы
+- Web UI + API через nginx: `http://localhost/`
+- RabbitMQ UI: `http://localhost:15672/` (логин/пароль из `.env`)
+- Метрики приложения: `http://localhost/metrics`
+- Healthcheck: `http://localhost/api/health`
+
+## Демо‑пользователи (создаются автоматически на startup)
+
+- **admin**: `admin@demo.local` / `admin1` (баланс 10000)
+- **user**: `user@demo.local` / `user12` (баланс 100)
+
+Демо‑ML‑модели:
+- `catboost-churn:1.0` (0.10 / row)
+- `xgb-fraud:1.0` (0.50 / row)
+- `bert-sentiment:2.1` (0.20 / row)
+
+## REST API (ключевые ручки)
+
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /balance/` (текущий баланс)
+- `POST /balance/topup` (пополнение)
+- `POST /predict/sync` (синхронный предикт)
+- `POST /predict/` (асинхронный предикт → очередь)
+- `GET /predict/{request_id}` (статус/результат)
+- `GET /history/transactions`
+- `GET /history/predictions`
+- `GET /api/health` (healthcheck)
+- `GET /metrics` (встроенные JSON‑метрики)
+
+## Мониторинг
+
+В проекте реализованы встроенные метрики и healthcheck:
+
+- `GET /metrics` — JSON‑метрики (RPS, latency, ошибки, ML‑статусы, пополнения/списания)
+- `GET /api/health` — проверка доступности **PostgreSQL** и **RabbitMQ**
+
+
+## Логирование
+
+Логи пишутся в stdout контейнеров.
+Уровень задаётся переменной:
+
+```bash
+LOG_LEVEL=INFO
+```
+
+## Тесты
+
+```bash
+docker compose run --rm tests
+```
+
+### Локально (опционально)
+```bash
+cd app
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python -m src.main run-api
+```
+
+
+
+---
+
 # Постановка задачи
 Требуется разработать Web приложение - личный кабинет пользователя ML сервиса. Подборка примеров с подобными сервисами - ссылка.
 
